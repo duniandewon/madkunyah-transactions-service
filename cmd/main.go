@@ -2,18 +2,21 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/duniandewon/madkunyah-transactions-service/internal/config"
+	postgresql "github.com/duniandewon/madkunyah-transactions-service/internal/platform/postgres"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
 type application struct {
 	env *config.Env
+	db  *sql.DB
 }
 
 func (app *application) mount() http.Handler {
@@ -25,14 +28,14 @@ func (app *application) mount() http.Handler {
 	r.Use(middleware.Recoverer)
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		_, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
 
-		// if err := app.db.PingContext(ctx); err != nil {
-		// 	w.WriteHeader(http.StatusServiceUnavailable)
-		// 	w.Write([]byte("Database Down"))
-		// 	return
-		// }
+		if err := app.db.PingContext(ctx); err != nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte("Database Down"))
+			return
+		}
 
 		w.Write([]byte("System Healthy"))
 	})
@@ -55,8 +58,17 @@ func (app *application) run(h http.Handler) error {
 }
 
 func main() {
+	env := config.NewEnv()
+
+	db, err := postgresql.NewDatabase(env.DatabaseUrl)
+	if err != nil {
+		log.Fatalf("Could not connect to database: %v", err)
+	}
+	defer db.Close()
+
 	api := application{
-		env: config.NewEnv(),
+		env: env,
+		db:  db,
 	}
 
 	if err := api.run(api.mount()); err != nil {
