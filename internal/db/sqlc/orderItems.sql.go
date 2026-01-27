@@ -71,6 +71,7 @@ SELECT
     oi.unit_price,
     oi.quantity AS item_quantity,
     oi.item_total,
+    oim.id AS modifier_id,
     oim.modifier_group_name_snapshot,
     oim.modifier_item_name_snapshot,
     oim.modifier_price,
@@ -88,6 +89,7 @@ type GetAllOrderItemsRow struct {
 	UnitPrice                 int32          `json:"unit_price"`
 	ItemQuantity              int32          `json:"item_quantity"`
 	ItemTotal                 int32          `json:"item_total"`
+	ModifierID                sql.NullInt32  `json:"modifier_id"`
 	ModifierGroupNameSnapshot sql.NullString `json:"modifier_group_name_snapshot"`
 	ModifierItemNameSnapshot  sql.NullString `json:"modifier_item_name_snapshot"`
 	ModifierPrice             sql.NullInt32  `json:"modifier_price"`
@@ -109,6 +111,7 @@ func (q *Queries) GetAllOrderItems(ctx context.Context, orderID int32) ([]GetAll
 			&i.UnitPrice,
 			&i.ItemQuantity,
 			&i.ItemTotal,
+			&i.ModifierID,
 			&i.ModifierGroupNameSnapshot,
 			&i.ModifierItemNameSnapshot,
 			&i.ModifierPrice,

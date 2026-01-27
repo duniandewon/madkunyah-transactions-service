@@ -5,6 +5,7 @@ SELECT
     oi.unit_price,
     oi.quantity AS item_quantity,
     oi.item_total,
+    oim.id AS modifier_id,
     oim.modifier_group_name_snapshot,
     oim.modifier_item_name_snapshot,
     oim.modifier_price,
