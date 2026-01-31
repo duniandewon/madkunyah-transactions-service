@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+
+	mw "github.com/duniandewon/madkunyah-transactions-service/internal/middleware"
 )
 
 type handler struct {
@@ -54,6 +56,12 @@ func (h *handler) CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) GetAllOrdersHandler(w http.ResponseWriter, r *http.Request) {
+	claims, ok := mw.GetClaims(r.Context())
+	if !ok || claims.Role != "admin" {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	orders, err := h.repo.GetAll(r.Context())
 	if err != nil {
 		http.Error(w, "failed to get orders: "+err.Error(), http.StatusInternalServerError)
@@ -77,7 +85,11 @@ func (h *handler) GetOrdersByUserIdHandler(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *handler) GetUserOrderDetailsHandler(w http.ResponseWriter, r *http.Request) {
-	userID := 1
+	claims, ok := mw.GetClaims(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
 
 	orderID, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
@@ -85,7 +97,7 @@ func (h *handler) GetUserOrderDetailsHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	orderItemsRows, err := h.repo.GetUserOrderDetails(r.Context(), userID, orderID)
+	orderItemsRows, err := h.repo.GetUserOrderDetails(r.Context(), claims.UserID, orderID)
 	if err != nil {
 		http.Error(w, "failed to get order details: "+err.Error(), http.StatusInternalServerError)
 		return

@@ -10,6 +10,7 @@ import (
 
 	"github.com/duniandewon/madkunyah-transactions-service/internal/config"
 	"github.com/duniandewon/madkunyah-transactions-service/internal/features/orders"
+	mw "github.com/duniandewon/madkunyah-transactions-service/internal/middleware"
 	postgresql "github.com/duniandewon/madkunyah-transactions-service/internal/platform/postgres"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -45,9 +46,16 @@ func (app *application) mount() http.Handler {
 	menuClient := orders.NewMenuClient("http://localhost:5001")
 	orderHandler := orders.NewHandler(orderRepo, menuClient)
 
-	r.Get("/orders", orderHandler.GetAllOrdersHandler)
-	r.Post("/orders", orderHandler.CreateOrderHandler)
-	r.Get("/orders/{id}", orderHandler.GetUserOrderDetailsHandler)
+	r.Route("/orders", func(r chi.Router) {
+		r.Post("/", orderHandler.CreateOrderHandler)
+
+		r.Group(func(r chi.Router) {
+			r.Use(mw.IsAuth(app.env.JwtSecret))
+
+			r.Get("/", orderHandler.GetAllOrdersHandler)
+			r.Get("/{id}", orderHandler.GetUserOrderDetailsHandler)
+		})
+	})
 
 	return r
 }
