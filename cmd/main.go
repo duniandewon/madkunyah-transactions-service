@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/duniandewon/madkunyah-transactions-service/internal/config"
+	"github.com/duniandewon/madkunyah-transactions-service/internal/features/orders"
 	postgresql "github.com/duniandewon/madkunyah-transactions-service/internal/platform/postgres"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -39,6 +40,14 @@ func (app *application) mount() http.Handler {
 
 		w.Write([]byte("System Healthy"))
 	})
+
+	orderRepo := orders.NewPostgresRepository(app.db)
+	menuClient := orders.NewMenuClient("http://localhost:5001")
+	orderHandler := orders.NewHandler(orderRepo, menuClient)
+
+	r.Get("/orders", orderHandler.GetAllOrdersHandler)
+	r.Post("/orders", orderHandler.CreateOrderHandler)
+	r.Get("/orders/{id}", orderHandler.GetUserOrderDetailsHandler)
 
 	return r
 }
