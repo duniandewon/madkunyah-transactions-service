@@ -1,4 +1,4 @@
-package orders
+package api
 
 import (
 	"context"
@@ -8,23 +8,24 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/duniandewon/madkunyah-transactions-service/internal/features/orders"
 	mw "github.com/duniandewon/madkunyah-transactions-service/internal/middleware"
 )
 
-type handler struct {
-	repo       OrderRepository
-	menuClient *MenuClient
+type OrderHandler struct {
+	repo       orders.OrderRepository
+	menuClient *orders.MenuClient
 }
 
-func NewHandler(repo OrderRepository, menuClient *MenuClient) *handler {
-	return &handler{
+func NewOrderHandler(repo orders.OrderRepository, menuClient *orders.MenuClient) *OrderHandler {
+	return &OrderHandler{
 		repo:       repo,
 		menuClient: menuClient,
 	}
 }
 
-func (h *handler) CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
-	var req OrderRequest
+func (h *OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
+	var req orders.OrderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
@@ -36,7 +37,7 @@ func (h *handler) CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orderInput := CreateOrderInput{
+	orderInput := orders.CreateOrderInput{
 		CustomerName: req.Customer.Name,
 		Phone:        req.Customer.Phone,
 		Address:      req.Customer.Address,
@@ -55,7 +56,7 @@ func (h *handler) CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(order)
 }
 
-func (h *handler) GetAllOrdersHandler(w http.ResponseWriter, r *http.Request) {
+func (h *OrderHandler) GetAllOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	claims, ok := mw.GetClaims(r.Context())
 	if !ok || claims.Role != "admin" {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -72,7 +73,7 @@ func (h *handler) GetAllOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(orders)
 }
 
-func (h *handler) GetOrdersByUserIdHandler(w http.ResponseWriter, r *http.Request) {
+func (h *OrderHandler) GetOrdersByUserIdHandler(w http.ResponseWriter, r *http.Request) {
 	userID := 1
 	orders, err := h.repo.GetAllByUserID(r.Context(), userID)
 	if err != nil {
@@ -84,7 +85,7 @@ func (h *handler) GetOrdersByUserIdHandler(w http.ResponseWriter, r *http.Reques
 	json.NewEncoder(w).Encode(orders)
 }
 
-func (h *handler) GetUserOrderDetailsHandler(w http.ResponseWriter, r *http.Request) {
+func (h *OrderHandler) GetUserOrderDetailsHandler(w http.ResponseWriter, r *http.Request) {
 	claims, ok := mw.GetClaims(r.Context())
 	if !ok {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -107,15 +108,15 @@ func (h *handler) GetUserOrderDetailsHandler(w http.ResponseWriter, r *http.Requ
 	json.NewEncoder(w).Encode(orderItemsRows)
 }
 
-func (h *handler) buildOrderItems(ctx context.Context, items []MenuItemRequest) ([]CreateOrderItemInput, error) {
-	resChan := make(chan CreateOrderItemInput, len(items))
+func (h *OrderHandler) buildOrderItems(ctx context.Context, items []orders.MenuItemRequest) ([]orders.CreateOrderItemInput, error) {
+	resChan := make(chan orders.CreateOrderItemInput, len(items))
 	errChan := make(chan error, len(items))
 	var wg sync.WaitGroup
 
 	for _, item := range items {
 		wg.Add(1)
 
-		go func(item MenuItemRequest) {
+		go func(item orders.MenuItemRequest) {
 			defer wg.Done()
 
 			menu, err := h.menuClient.FetchMenu(ctx, int(item.MenuID))
@@ -124,13 +125,13 @@ func (h *handler) buildOrderItems(ctx context.Context, items []MenuItemRequest) 
 				return
 			}
 
-			var selectedModifiersItems []CreateOrderItemModifierInput
+			var selectedModifiersItems []orders.CreateOrderItemModifierInput
 			for _, modReq := range item.ModifiersItemsID {
 				found := false
 				for _, group := range menu.ModifierGroups {
 					for _, modItem := range group.Items {
 						if modItem.ID == modReq {
-							selectedModifiersItems = append(selectedModifiersItems, CreateOrderItemModifierInput{
+							selectedModifiersItems = append(selectedModifiersItems, orders.CreateOrderItemModifierInput{
 								ModifierID:        modReq,
 								ModifierItemName:  modItem.Name,
 								ModifierGroupName: group.Name,
@@ -151,7 +152,7 @@ func (h *handler) buildOrderItems(ctx context.Context, items []MenuItemRequest) 
 
 			}
 
-			resChan <- CreateOrderItemInput{
+			resChan <- orders.CreateOrderItemInput{
 				MenuID:    int(item.MenuID),
 				MenuName:  menu.Name,
 				Quantity:  int(item.Quantity),
@@ -168,7 +169,7 @@ func (h *handler) buildOrderItems(ctx context.Context, items []MenuItemRequest) 
 		return nil, <-errChan
 	}
 
-	var orderItems []CreateOrderItemInput
+	var orderItems []orders.CreateOrderItemInput
 	for item := range resChan {
 		orderItems = append(orderItems, item)
 	}

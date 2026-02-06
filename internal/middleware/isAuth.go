@@ -2,6 +2,8 @@ package middleware
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -18,22 +20,31 @@ type Claims struct {
 
 const ClaimsKey contextKey = "claims"
 
-var secretKey = []byte("your-256-bit-secret")
+var (
+	ErrMissingToken       = errors.New("missing authorization token")
+	ErrInvalidTokenFormat = errors.New("invalid token format")
+	ErrInvalidToken       = errors.New("invalid token")
+)
 
-func verifyToken(tokenString string) (*Claims, error) {
+func verifyToken(secretKey, tokenString string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		return secretKey, nil
+		// Validate the signing method
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(secretKey), nil
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", ErrInvalidToken, err)
 	}
 
-	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
-		return claims, nil
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		return nil, ErrInvalidToken
 	}
 
-	return nil, err
+	return claims, nil
 }
 
 func GetClaims(ctx context.Context) (*Claims, bool) {
@@ -42,30 +53,28 @@ func GetClaims(ctx context.Context) (*Claims, bool) {
 }
 
 func IsAuth(jwtSecret string) func(http.Handler) http.Handler {
-	secretKey = []byte(jwtSecret)
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				http.Error(w, ErrMissingToken.Error(), http.StatusUnauthorized)
 				return
 			}
 
 			if !strings.HasPrefix(authHeader, "Bearer ") {
-				http.Error(w, "Unauthorized: Missing or invalid token format", http.StatusUnauthorized)
+				http.Error(w, ErrInvalidTokenFormat.Error(), http.StatusUnauthorized)
 				return
 			}
 
 			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
-			claims, err := verifyToken(tokenString)
+			claims, err := verifyToken(jwtSecret, tokenString)
 			if err != nil {
-				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				http.Error(w, err.Error(), http.StatusUnauthorized)
 				return
 			}
 
 			ctx := context.WithValue(r.Context(), ClaimsKey, claims)
-
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

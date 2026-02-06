@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/duniandewon/madkunyah-transactions-service/api"
 	"github.com/duniandewon/madkunyah-transactions-service/internal/config"
 	"github.com/duniandewon/madkunyah-transactions-service/internal/features/orders"
 	mw "github.com/duniandewon/madkunyah-transactions-service/internal/middleware"
@@ -42,9 +43,9 @@ func (app *application) mount() http.Handler {
 		w.Write([]byte("System Healthy"))
 	})
 
-	orderRepo := orders.NewPostgresRepository(app.db)
+	orderRepo := orders.NewService(app.db)
 	menuClient := orders.NewMenuClient("http://localhost:5001")
-	orderHandler := orders.NewHandler(orderRepo, menuClient)
+	orderHandler := api.NewOrderHandler(orderRepo, menuClient)
 
 	r.Route("/orders", func(r chi.Router) {
 		r.Post("/", orderHandler.CreateOrderHandler)

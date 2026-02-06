@@ -8,13 +8,13 @@ import (
 	db "github.com/duniandewon/madkunyah-transactions-service/internal/db/sqlc"
 )
 
-type PostgresRepository struct {
+type svc struct {
 	*db.Queries
 	connPool *sql.DB
 }
 
-func NewPostgresRepository(connPool *sql.DB) *PostgresRepository {
-	return &PostgresRepository{
+func NewService(connPool *sql.DB) *svc {
+	return &svc{
 		Queries:  db.New(connPool),
 		connPool: connPool,
 	}
@@ -34,16 +34,16 @@ func calculateOrderTotal(items []CreateOrderItemInput) int {
 	return total
 }
 
-func (r *PostgresRepository) Create(ctx context.Context, params CreateOrderInput) (*Order, error) {
+func (s *svc) Create(ctx context.Context, params CreateOrderInput) (*Order, error) {
 	total := calculateOrderTotal(params.Items)
 
-	tx, err := r.connPool.BeginTx(ctx, nil)
+	tx, err := s.connPool.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback()
 
-	qtx := r.Queries.WithTx(tx)
+	qtx := s.Queries.WithTx(tx)
 
 	var userIDParam sql.NullInt32
 	if params.UserID != nil && *params.UserID > 0 {
@@ -109,8 +109,8 @@ func (r *PostgresRepository) Create(ctx context.Context, params CreateOrderInput
 	}, nil
 }
 
-func (r *PostgresRepository) GetAll(ctx context.Context) ([]*Order, error) {
-	dbOrders, err := r.Queries.GetAllOrders(ctx)
+func (s *svc) GetAll(ctx context.Context) ([]*Order, error) {
+	dbOrders, err := s.Queries.GetAllOrders(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list orders: %w", err)
 	}
@@ -141,8 +141,8 @@ func (r *PostgresRepository) GetAll(ctx context.Context) ([]*Order, error) {
 	return orders, nil
 }
 
-func (r *PostgresRepository) GetAllByUserID(ctx context.Context, userID int) ([]*Order, error) {
-	dbOrders, err := r.Queries.GetOrdersByUserId(ctx, sql.NullInt32{Int32: int32(userID), Valid: true})
+func (s *svc) GetAllByUserID(ctx context.Context, userID int) ([]*Order, error) {
+	dbOrders, err := s.Queries.GetOrdersByUserId(ctx, sql.NullInt32{Int32: int32(userID), Valid: true})
 	if err != nil {
 		return nil, fmt.Errorf("get orders by user id: %w", err)
 	}
@@ -173,8 +173,8 @@ func (r *PostgresRepository) GetAllByUserID(ctx context.Context, userID int) ([]
 	return orders, nil
 }
 
-func (r *PostgresRepository) GetUserOrderDetails(ctx context.Context, userID, orderID int) (*OrderDetail, error) {
-	dbOrderItems, err := r.Queries.GetAllOrderItems(ctx, int32(orderID))
+func (s *svc) GetUserOrderDetails(ctx context.Context, userID, orderID int) (*OrderDetail, error) {
+	dbOrderItems, err := s.Queries.GetAllOrderItems(ctx, int32(orderID))
 	if err != nil {
 		return nil, fmt.Errorf("get order items: %w", err)
 	}
