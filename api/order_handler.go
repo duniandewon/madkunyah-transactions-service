@@ -41,7 +41,6 @@ func (h *OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request
 		CustomerName: req.Customer.Name,
 		Phone:        req.Customer.Phone,
 		Address:      req.Customer.Address,
-		Currency:     "IDR",
 		Items:        orderItems,
 	}
 
@@ -63,7 +62,20 @@ func (h *OrderHandler) GetAllOrdersHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	orders, err := h.repo.GetAll(r.Context())
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		limit = 10
+	}
+
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil || offset < 0 {
+		offset = 0
+	}
+
+	orders, err := h.repo.GetAll(r.Context(), offset, limit)
 	if err != nil {
 		http.Error(w, "failed to get orders: "+err.Error(), http.StatusInternalServerError)
 		return

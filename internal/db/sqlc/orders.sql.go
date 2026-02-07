@@ -13,7 +13,7 @@ import (
 const cancelOrder = `-- name: CancelOrder :exec
 UPDATE orders
 SET fulfillment_status = 'canceled',
-    updated_at = CURRENT_TIMESTAMP
+  updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
   AND payment_status = 'pending'
   AND fulfillment_status = 'new'
@@ -27,7 +27,7 @@ func (q *Queries) CancelOrder(ctx context.Context, id int32) error {
 const completeOrder = `-- name: CompleteOrder :exec
 UPDATE orders
 SET fulfillment_status = 'completed',
-    updated_at = CURRENT_TIMESTAMP
+  updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
   AND payment_status = 'paid'
   AND fulfillment_status = 'delivering'
@@ -45,19 +45,19 @@ INSERT INTO orders (
     customer_phone,
     delivery_address,
     order_total,
-    currency,
     payment_status,
     fulfillment_status
-) VALUES (
+  )
+VALUES (
     $1,
     $2,
     $3,
     $4,
     $5,
     $6,
-    $7,
-    $8
-) RETURNING id, user_id, customer_name, customer_phone, delivery_address, order_total, currency, payment_status, fulfillment_status, created_at, updated_at
+    $7
+  )
+RETURNING id, user_id, customer_name, customer_phone, delivery_address, order_total, payment_status, fulfillment_status, created_at, updated_at
 `
 
 type CreateOrderParams struct {
@@ -66,7 +66,6 @@ type CreateOrderParams struct {
 	CustomerPhone     string        `json:"customer_phone"`
 	DeliveryAddress   string        `json:"delivery_address"`
 	OrderTotal        int32         `json:"order_total"`
-	Currency          string        `json:"currency"`
 	PaymentStatus     string        `json:"payment_status"`
 	FulfillmentStatus string        `json:"fulfillment_status"`
 }
@@ -78,7 +77,6 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		arg.CustomerPhone,
 		arg.DeliveryAddress,
 		arg.OrderTotal,
-		arg.Currency,
 		arg.PaymentStatus,
 		arg.FulfillmentStatus,
 	)
@@ -90,7 +88,6 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		&i.CustomerPhone,
 		&i.DeliveryAddress,
 		&i.OrderTotal,
-		&i.Currency,
 		&i.PaymentStatus,
 		&i.FulfillmentStatus,
 		&i.CreatedAt,
@@ -100,11 +97,19 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 }
 
 const getAllOrders = `-- name: GetAllOrders :many
-SELECT id, user_id, customer_name, customer_phone, delivery_address, order_total, currency, payment_status, fulfillment_status, created_at, updated_at FROM orders ORDER BY created_at DESC
+SELECT id, user_id, customer_name, customer_phone, delivery_address, order_total, payment_status, fulfillment_status, created_at, updated_at
+FROM orders
+ORDER BY created_at DESC
+LIMIT $2 OFFSET $1
 `
 
-func (q *Queries) GetAllOrders(ctx context.Context) ([]Order, error) {
-	rows, err := q.db.QueryContext(ctx, getAllOrders)
+type GetAllOrdersParams struct {
+	Offset int32 `json:"offset"`
+	Limit  int32 `json:"limit"`
+}
+
+func (q *Queries) GetAllOrders(ctx context.Context, arg GetAllOrdersParams) ([]Order, error) {
+	rows, err := q.db.QueryContext(ctx, getAllOrders, arg.Offset, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +124,6 @@ func (q *Queries) GetAllOrders(ctx context.Context) ([]Order, error) {
 			&i.CustomerPhone,
 			&i.DeliveryAddress,
 			&i.OrderTotal,
-			&i.Currency,
 			&i.PaymentStatus,
 			&i.FulfillmentStatus,
 			&i.CreatedAt,
@@ -139,7 +143,9 @@ func (q *Queries) GetAllOrders(ctx context.Context) ([]Order, error) {
 }
 
 const getOrderById = `-- name: GetOrderById :one
-SELECT id, user_id, customer_name, customer_phone, delivery_address, order_total, currency, payment_status, fulfillment_status, created_at, updated_at FROM orders WHERE id = $1
+SELECT id, user_id, customer_name, customer_phone, delivery_address, order_total, payment_status, fulfillment_status, created_at, updated_at
+FROM orders
+WHERE id = $1
 `
 
 func (q *Queries) GetOrderById(ctx context.Context, id int32) (Order, error) {
@@ -152,7 +158,6 @@ func (q *Queries) GetOrderById(ctx context.Context, id int32) (Order, error) {
 		&i.CustomerPhone,
 		&i.DeliveryAddress,
 		&i.OrderTotal,
-		&i.Currency,
 		&i.PaymentStatus,
 		&i.FulfillmentStatus,
 		&i.CreatedAt,
@@ -162,7 +167,10 @@ func (q *Queries) GetOrderById(ctx context.Context, id int32) (Order, error) {
 }
 
 const getOrdersByUserId = `-- name: GetOrdersByUserId :many
-SELECT id, user_id, customer_name, customer_phone, delivery_address, order_total, currency, payment_status, fulfillment_status, created_at, updated_at FROM orders WHERE user_id = $1 ORDER BY created_at DESC
+SELECT id, user_id, customer_name, customer_phone, delivery_address, order_total, payment_status, fulfillment_status, created_at, updated_at
+FROM orders
+WHERE user_id = $1
+ORDER BY created_at DESC
 `
 
 func (q *Queries) GetOrdersByUserId(ctx context.Context, userID sql.NullInt32) ([]Order, error) {
@@ -181,7 +189,6 @@ func (q *Queries) GetOrdersByUserId(ctx context.Context, userID sql.NullInt32) (
 			&i.CustomerPhone,
 			&i.DeliveryAddress,
 			&i.OrderTotal,
-			&i.Currency,
 			&i.PaymentStatus,
 			&i.FulfillmentStatus,
 			&i.CreatedAt,
@@ -203,7 +210,7 @@ func (q *Queries) GetOrdersByUserId(ctx context.Context, userID sql.NullInt32) (
 const markOrderDelivering = `-- name: MarkOrderDelivering :exec
 UPDATE orders
 SET fulfillment_status = 'delivering',
-    updated_at = CURRENT_TIMESTAMP
+  updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
   AND payment_status = 'paid'
   AND fulfillment_status = 'preparing'
@@ -217,7 +224,7 @@ func (q *Queries) MarkOrderDelivering(ctx context.Context, id int32) error {
 const markOrderPaid = `-- name: MarkOrderPaid :exec
 UPDATE orders
 SET payment_status = 'paid',
-    updated_at = CURRENT_TIMESTAMP
+  updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
   AND payment_status = 'pending'
 `
@@ -230,8 +237,8 @@ func (q *Queries) MarkOrderPaid(ctx context.Context, id int32) error {
 const markOrderPaymentExpired = `-- name: MarkOrderPaymentExpired :exec
 UPDATE orders
 SET payment_status = 'expired',
-    fulfillment_status = 'canceled',
-    updated_at = CURRENT_TIMESTAMP
+  fulfillment_status = 'canceled',
+  updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
   AND payment_status = 'pending'
   AND fulfillment_status = 'new'
@@ -245,8 +252,8 @@ func (q *Queries) MarkOrderPaymentExpired(ctx context.Context, id int32) error {
 const markOrderPaymentFailed = `-- name: MarkOrderPaymentFailed :exec
 UPDATE orders
 SET payment_status = 'failed',
-    fulfillment_status = 'canceled',
-    updated_at = CURRENT_TIMESTAMP
+  fulfillment_status = 'canceled',
+  updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
   AND payment_status = 'pending'
   AND fulfillment_status = 'new'
@@ -260,7 +267,7 @@ func (q *Queries) MarkOrderPaymentFailed(ctx context.Context, id int32) error {
 const startPreparingOrder = `-- name: StartPreparingOrder :exec
 UPDATE orders
 SET fulfillment_status = 'preparing',
-    updated_at = CURRENT_TIMESTAMP
+  updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
   AND payment_status = 'paid'
   AND fulfillment_status = 'new'
@@ -274,7 +281,7 @@ func (q *Queries) StartPreparingOrder(ctx context.Context, id int32) error {
 const updateOrderTotal = `-- name: UpdateOrderTotal :exec
 UPDATE orders
 SET order_total = $1,
-    updated_at = CURRENT_TIMESTAMP
+  updated_at = CURRENT_TIMESTAMP
 WHERE id = $2
 `
 

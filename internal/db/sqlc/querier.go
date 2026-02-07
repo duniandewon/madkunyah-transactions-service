@@ -15,14 +15,22 @@ type Querier interface {
 	CreateOrder(ctx context.Context, arg CreateOrderParams) (Order, error)
 	CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) (OrderItem, error)
 	CreateOrderItemModifier(ctx context.Context, arg CreateOrderItemModifierParams) (OrderItemModifier, error)
+	CreatePayment(ctx context.Context, arg CreatePaymentParams) (Payment, error)
 	GetAllOrderItems(ctx context.Context, orderID int32) ([]GetAllOrderItemsRow, error)
-	GetAllOrders(ctx context.Context) ([]Order, error)
+	GetAllOrders(ctx context.Context, arg GetAllOrdersParams) ([]Order, error)
+	GetAllPayments(ctx context.Context, arg GetAllPaymentsParams) ([]Payment, error)
 	GetOrderById(ctx context.Context, id int32) (Order, error)
 	GetOrdersByUserId(ctx context.Context, userID sql.NullInt32) ([]Order, error)
+	GetPaymentByExternalID(ctx context.Context, arg GetPaymentByExternalIDParams) ([]Payment, error)
+	GetPaymentsByOrderID(ctx context.Context, arg GetPaymentsByOrderIDParams) ([]Payment, error)
 	MarkOrderDelivering(ctx context.Context, id int32) error
 	MarkOrderPaid(ctx context.Context, id int32) error
 	MarkOrderPaymentExpired(ctx context.Context, id int32) error
 	MarkOrderPaymentFailed(ctx context.Context, id int32) error
+	MarkPaymentExpired(ctx context.Context, id int32) error
+	MarkPaymentFailed(ctx context.Context, id int32) error
+	MarkPaymentPaid(ctx context.Context, arg MarkPaymentPaidParams) error
+	MarkPaymentSettled(ctx context.Context, id int32) error
 	StartPreparingOrder(ctx context.Context, id int32) error
 	UpdateOrderTotal(ctx context.Context, arg UpdateOrderTotalParams) error
 }

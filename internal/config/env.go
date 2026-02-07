@@ -12,6 +12,7 @@ type Env struct {
 	RedisUrl    string
 	Port        string
 	JwtSecret   string
+	XenditKey   string
 }
 
 func getEnv(key string) string {
@@ -30,5 +31,6 @@ func NewEnv() *Env {
 		DatabaseUrl: getEnv("DATABASE_URL"),
 		RedisUrl:    getEnv("REDIS_URL"),
 		JwtSecret:   getEnv("JWT_SECRET"),
+		XenditKey:   getEnv("XENDIT_SECRET_KEY"),
 	}
 }

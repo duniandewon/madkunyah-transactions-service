@@ -52,7 +52,6 @@ type CreateOrderInput struct {
 	CustomerName string                 `json:"customer_name"`
 	Phone        string                 `json:"phone"`
 	Address      string                 `json:"address"`
-	Currency     string                 `json:"currency"`
 	Items        []CreateOrderItemInput `json:"items" validate:"required,min=1"`
 }
 
@@ -91,7 +90,7 @@ type MenuItemRequest struct {
 type OrderRepository interface {
 	// Order operations
 	Create(ctx context.Context, params CreateOrderInput) (*Order, error)
-	GetAll(ctx context.Context) ([]*Order, error)
+	GetAll(ctx context.Context, offset, limit int) ([]*Order, error)
 	GetAllByUserID(ctx context.Context, userID int) ([]*Order, error)
 	GetUserOrderDetails(ctx context.Context, userID, orderID int) (*OrderDetail, error)
 

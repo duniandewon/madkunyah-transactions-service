@@ -56,7 +56,6 @@ func (s *svc) Create(ctx context.Context, params CreateOrderInput) (*Order, erro
 		CustomerPhone:     params.Phone,
 		DeliveryAddress:   params.Address,
 		OrderTotal:        int32(total),
-		Currency:          "IDR",
 		PaymentStatus:     "pending",
 		FulfillmentStatus: "new",
 	})
@@ -109,8 +108,11 @@ func (s *svc) Create(ctx context.Context, params CreateOrderInput) (*Order, erro
 	}, nil
 }
 
-func (s *svc) GetAll(ctx context.Context) ([]*Order, error) {
-	dbOrders, err := s.Queries.GetAllOrders(ctx)
+func (s *svc) GetAll(ctx context.Context, offset, limit int) ([]*Order, error) {
+	dbOrders, err := s.Queries.GetAllOrders(ctx, db.GetAllOrdersParams{
+		Offset: int32(offset),
+		Limit:  int32(limit),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list orders: %w", err)
 	}
