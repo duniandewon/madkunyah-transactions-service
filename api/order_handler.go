@@ -10,18 +10,28 @@ import (
 
 	"github.com/duniandewon/madkunyah-transactions-service/internal/features/orders"
 	mw "github.com/duniandewon/madkunyah-transactions-service/internal/middleware"
+	"github.com/duniandewon/madkunyah-transactions-service/internal/platform/paymentgateway"
 )
 
 type OrderHandler struct {
-	repo       orders.OrderRepository
-	menuClient *orders.MenuClient
+	repo           orders.OrderRepository
+	menuClient     *orders.MenuClient
+	paymentgateway paymentgateway.PaymentGateway
 }
 
-func NewOrderHandler(repo orders.OrderRepository, menuClient *orders.MenuClient) *OrderHandler {
+func NewOrderHandler(repo orders.OrderRepository, menuClient *orders.MenuClient, paymentGateway paymentgateway.PaymentGateway) *OrderHandler {
 	return &OrderHandler{
-		repo:       repo,
-		menuClient: menuClient,
+		repo:           repo,
+		menuClient:     menuClient,
+		paymentgateway: paymentGateway,
 	}
+}
+
+type CreateOrderResponse struct {
+	OrderID   int    `json:"order_id"`
+	URL       string `json:"url"`
+	Total     int    `json:"total"`
+	GatewayID string `json:"gateway_id"`
 }
 
 func (h *OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
@@ -33,7 +43,7 @@ func (h *OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request
 
 	orderItems, err := h.buildOrderItems(r.Context(), req.Items)
 	if err != nil {
-		http.Error(w, "failed to build order items: "+err.Error(), http.StatusBadRequest)
+		http.Error(w, "failed to build order items: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -50,9 +60,22 @@ func (h *OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	url, gatewayID, err := h.paymentgateway.CreatePaymentRequest(r.Context(), order.Total, fmt.Sprint(order.ID))
+	if err != nil {
+		http.Error(w, "Failed to create payment request: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response := CreateOrderResponse{
+		OrderID:   order.ID,
+		URL:       url,
+		Total:     order.Total,
+		GatewayID: gatewayID,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(order)
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *OrderHandler) GetAllOrdersHandler(w http.ResponseWriter, r *http.Request) {

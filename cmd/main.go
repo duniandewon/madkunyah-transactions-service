@@ -12,6 +12,7 @@ import (
 	"github.com/duniandewon/madkunyah-transactions-service/internal/config"
 	"github.com/duniandewon/madkunyah-transactions-service/internal/features/orders"
 	mw "github.com/duniandewon/madkunyah-transactions-service/internal/middleware"
+	"github.com/duniandewon/madkunyah-transactions-service/internal/platform/paymentgateway"
 	postgresql "github.com/duniandewon/madkunyah-transactions-service/internal/platform/postgres"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -43,9 +44,11 @@ func (app *application) mount() http.Handler {
 		w.Write([]byte("System Healthy"))
 	})
 
+	xenditClient := paymentgateway.NewXenditGateway(app.env.XenditKey)
+
 	orderRepo := orders.NewService(app.db)
-	menuClient := orders.NewMenuClient("http://localhost:5001")
-	orderHandler := api.NewOrderHandler(orderRepo, menuClient)
+	menuClient := orders.NewMenuClient("http://localhost:5002")
+	orderHandler := api.NewOrderHandler(orderRepo, menuClient, xenditClient)
 
 	r.Route("/orders", func(r chi.Router) {
 		r.Post("/", orderHandler.CreateOrderHandler)
