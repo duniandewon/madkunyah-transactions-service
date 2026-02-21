@@ -46,14 +46,11 @@ type Payment struct {
 	ID                   int32          `json:"id"`
 	OrderID              int32          `json:"order_id"`
 	ExternalID           string         `json:"external_id"`
-	GatewayTransactionID string         `json:"gateway_transaction_id"`
+	GatewayTransactionID sql.NullString `json:"gateway_transaction_id"`
 	GatewayName          string         `json:"gateway_name"`
 	Amount               int32          `json:"amount"`
-	PaymentMethod        sql.NullString `json:"payment_method"`
 	PaymentChannel       sql.NullString `json:"payment_channel"`
 	Status               string         `json:"status"`
-	CheckoutUrl          sql.NullString `json:"checkout_url"`
-	CallbackToken        sql.NullString `json:"callback_token"`
 	PaidAt               sql.NullTime   `json:"paid_at"`
 	CreatedAt            time.Time      `json:"created_at"`
 	UpdatedAt            time.Time      `json:"updated_at"`

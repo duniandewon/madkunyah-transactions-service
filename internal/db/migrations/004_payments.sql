@@ -3,10 +3,9 @@ CREATE TABLE IF NOT EXISTS payments (
   id SERIAL PRIMARY KEY,
   order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
   external_id VARCHAR(255) NOT NULL UNIQUE,
-  gateway_transaction_id VARCHAR(255) NOT NULL,
+  gateway_transaction_id VARCHAR(255),
   gateway_name VARCHAR(50) NOT NULL,
   amount INTEGER NOT NULL,
-  payment_method VARCHAR(50),
   payment_channel VARCHAR(50),
   status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (
     status IN (
@@ -17,8 +16,6 @@ CREATE TABLE IF NOT EXISTS payments (
       'settled'
     )
   ),
-  checkout_url TEXT,
-  callback_token VARCHAR(255),
   paid_at TIMESTAMP,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP

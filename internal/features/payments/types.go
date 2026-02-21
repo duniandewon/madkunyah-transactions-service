@@ -1,6 +1,7 @@
 package payments
 
 import (
+	"context"
 	"time"
 )
 
@@ -20,12 +21,22 @@ type Payment struct {
 }
 
 type CreatePaymentInput struct {
-	OrderID     int    `json:"order_id"`
-	ExternalID  string `json:"external_id"`
-	GatewayName string `json:"gateway_name"`
-	Amount      int    `json:"amount"`
+	OrderID        int    `json:"order_id"`
+	ExternalID     string `json:"external_id"`
+	GatewayName    string `json:"gateway_name"`
+	PaymentChannel string `json:"payment_channel"`
+	Amount         int    `json:"amount"`
 }
 
+type UpdatePaymentStatusInput struct {
+	OrderID              int    `json:"order_id"`
+	PaymentRequestID     string `json:"payment_request_id"`
+	PaymentChannel       string `json:"payment_channel"`
+	GatewayTransactionID string `json:"gateway_transaction_id"`
+	Status               string `json:"status"`
+}
 type PaymentService interface {
-	CreatePayment(input CreatePaymentInput) (*Payment, error)
+	CreatePayment(ctx context.Context, input CreatePaymentInput) (*Payment, error)
+	// GetPaymentByGatewayID(ctx context.Context, gatewayID string) (*Payment, error)
+	UpdatePaymentStatus(ctx context.Context, input UpdatePaymentStatusInput) error
 }

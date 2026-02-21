@@ -11,6 +11,7 @@ import (
 	"github.com/duniandewon/madkunyah-transactions-service/api"
 	"github.com/duniandewon/madkunyah-transactions-service/internal/config"
 	"github.com/duniandewon/madkunyah-transactions-service/internal/features/orders"
+	"github.com/duniandewon/madkunyah-transactions-service/internal/features/payments"
 	mw "github.com/duniandewon/madkunyah-transactions-service/internal/middleware"
 	"github.com/duniandewon/madkunyah-transactions-service/internal/platform/paymentgateway"
 	postgresql "github.com/duniandewon/madkunyah-transactions-service/internal/platform/postgres"
@@ -45,10 +46,12 @@ func (app *application) mount() http.Handler {
 	})
 
 	xenditClient := paymentgateway.NewXenditGateway(app.env.XenditKey)
-
-	orderRepo := orders.NewService(app.db)
 	menuClient := orders.NewMenuClient("http://localhost:5002")
-	orderHandler := api.NewOrderHandler(orderRepo, menuClient, xenditClient)
+
+	paymentService := payments.NewService(app.db)
+	orderRepo := orders.NewService(app.db)
+
+	orderHandler := api.NewOrderHandler(orderRepo, paymentService, menuClient, xenditClient)
 
 	r.Route("/orders", func(r chi.Router) {
 		r.Post("/", orderHandler.CreateOrderHandler)
@@ -60,6 +63,10 @@ func (app *application) mount() http.Handler {
 			r.Get("/{id}", orderHandler.GetUserOrderDetailsHandler)
 		})
 	})
+
+	xenditWebhooks := api.NewWebhookHandler(orderRepo, paymentService, app.env.XenditWebhookKey)
+
+	r.Post("/webhooks/xendit", xenditWebhooks.XenditPaymentWebhook)
 
 	return r
 }

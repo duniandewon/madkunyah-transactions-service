@@ -27,10 +27,10 @@ type Querier interface {
 	MarkOrderPaid(ctx context.Context, id int32) error
 	MarkOrderPaymentExpired(ctx context.Context, id int32) error
 	MarkOrderPaymentFailed(ctx context.Context, id int32) error
-	MarkPaymentExpired(ctx context.Context, id int32) error
-	MarkPaymentFailed(ctx context.Context, id int32) error
+	MarkPaymentExpired(ctx context.Context, externalID string) error
+	MarkPaymentFailed(ctx context.Context, externalID string) error
 	MarkPaymentPaid(ctx context.Context, arg MarkPaymentPaidParams) error
-	MarkPaymentSettled(ctx context.Context, id int32) error
+	MarkPaymentSettled(ctx context.Context, externalID string) error
 	StartPreparingOrder(ctx context.Context, id int32) error
 	UpdateOrderTotal(ctx context.Context, arg UpdateOrderTotalParams) error
 }

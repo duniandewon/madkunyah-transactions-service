@@ -15,6 +15,7 @@ INSERT INTO payments (
     order_id,
     external_id,
     gateway_name,
+    payment_channel,
     amount,
     status
   )
@@ -23,16 +24,18 @@ VALUES (
     $2,
     $3,
     $4,
+    $5,
     'pending'
   )
-RETURNING id, order_id, external_id, gateway_transaction_id, gateway_name, amount, payment_method, payment_channel, status, checkout_url, callback_token, paid_at, created_at, updated_at
+RETURNING id, order_id, external_id, gateway_transaction_id, gateway_name, amount, payment_channel, status, paid_at, created_at, updated_at
 `
 
 type CreatePaymentParams struct {
-	OrderID     int32  `json:"order_id"`
-	ExternalID  string `json:"external_id"`
-	GatewayName string `json:"gateway_name"`
-	Amount      int32  `json:"amount"`
+	OrderID        int32          `json:"order_id"`
+	ExternalID     string         `json:"external_id"`
+	GatewayName    string         `json:"gateway_name"`
+	PaymentChannel sql.NullString `json:"payment_channel"`
+	Amount         int32          `json:"amount"`
 }
 
 func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (Payment, error) {
@@ -40,6 +43,7 @@ func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (P
 		arg.OrderID,
 		arg.ExternalID,
 		arg.GatewayName,
+		arg.PaymentChannel,
 		arg.Amount,
 	)
 	var i Payment
@@ -50,11 +54,8 @@ func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (P
 		&i.GatewayTransactionID,
 		&i.GatewayName,
 		&i.Amount,
-		&i.PaymentMethod,
 		&i.PaymentChannel,
 		&i.Status,
-		&i.CheckoutUrl,
-		&i.CallbackToken,
 		&i.PaidAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -63,7 +64,7 @@ func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (P
 }
 
 const getAllPayments = `-- name: GetAllPayments :many
-SELECT id, order_id, external_id, gateway_transaction_id, gateway_name, amount, payment_method, payment_channel, status, checkout_url, callback_token, paid_at, created_at, updated_at
+SELECT id, order_id, external_id, gateway_transaction_id, gateway_name, amount, payment_channel, status, paid_at, created_at, updated_at
 FROM payments
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $1
@@ -90,11 +91,8 @@ func (q *Queries) GetAllPayments(ctx context.Context, arg GetAllPaymentsParams) 
 			&i.GatewayTransactionID,
 			&i.GatewayName,
 			&i.Amount,
-			&i.PaymentMethod,
 			&i.PaymentChannel,
 			&i.Status,
-			&i.CheckoutUrl,
-			&i.CallbackToken,
 			&i.PaidAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -113,7 +111,7 @@ func (q *Queries) GetAllPayments(ctx context.Context, arg GetAllPaymentsParams) 
 }
 
 const getPaymentByExternalID = `-- name: GetPaymentByExternalID :many
-SELECT id, order_id, external_id, gateway_transaction_id, gateway_name, amount, payment_method, payment_channel, status, checkout_url, callback_token, paid_at, created_at, updated_at
+SELECT id, order_id, external_id, gateway_transaction_id, gateway_name, amount, payment_channel, status, paid_at, created_at, updated_at
 FROM payments
 WHERE external_id = $1
 ORDER BY created_at DESC
@@ -142,11 +140,8 @@ func (q *Queries) GetPaymentByExternalID(ctx context.Context, arg GetPaymentByEx
 			&i.GatewayTransactionID,
 			&i.GatewayName,
 			&i.Amount,
-			&i.PaymentMethod,
 			&i.PaymentChannel,
 			&i.Status,
-			&i.CheckoutUrl,
-			&i.CallbackToken,
 			&i.PaidAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -165,7 +160,7 @@ func (q *Queries) GetPaymentByExternalID(ctx context.Context, arg GetPaymentByEx
 }
 
 const getPaymentsByOrderID = `-- name: GetPaymentsByOrderID :many
-SELECT id, order_id, external_id, gateway_transaction_id, gateway_name, amount, payment_method, payment_channel, status, checkout_url, callback_token, paid_at, created_at, updated_at
+SELECT id, order_id, external_id, gateway_transaction_id, gateway_name, amount, payment_channel, status, paid_at, created_at, updated_at
 FROM payments
 WHERE order_id = $1
 ORDER BY created_at DESC
@@ -194,11 +189,8 @@ func (q *Queries) GetPaymentsByOrderID(ctx context.Context, arg GetPaymentsByOrd
 			&i.GatewayTransactionID,
 			&i.GatewayName,
 			&i.Amount,
-			&i.PaymentMethod,
 			&i.PaymentChannel,
 			&i.Status,
-			&i.CheckoutUrl,
-			&i.CallbackToken,
 			&i.PaidAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -220,12 +212,12 @@ const markPaymentExpired = `-- name: MarkPaymentExpired :exec
 UPDATE payments
 SET status = 'expired',
   updated_at = CURRENT_TIMESTAMP
-WHERE id = $1
+WHERE external_id = $1
   AND status = 'pending'
 `
 
-func (q *Queries) MarkPaymentExpired(ctx context.Context, id int32) error {
-	_, err := q.db.ExecContext(ctx, markPaymentExpired, id)
+func (q *Queries) MarkPaymentExpired(ctx context.Context, externalID string) error {
+	_, err := q.db.ExecContext(ctx, markPaymentExpired, externalID)
 	return err
 }
 
@@ -233,12 +225,12 @@ const markPaymentFailed = `-- name: MarkPaymentFailed :exec
 UPDATE payments
 SET status = 'failed',
   updated_at = CURRENT_TIMESTAMP
-WHERE id = $1
+WHERE external_id = $1
   AND status = 'pending'
 `
 
-func (q *Queries) MarkPaymentFailed(ctx context.Context, id int32) error {
-	_, err := q.db.ExecContext(ctx, markPaymentFailed, id)
+func (q *Queries) MarkPaymentFailed(ctx context.Context, externalID string) error {
+	_, err := q.db.ExecContext(ctx, markPaymentFailed, externalID)
 	return err
 }
 
@@ -246,21 +238,21 @@ const markPaymentPaid = `-- name: MarkPaymentPaid :exec
 UPDATE payments
 SET status = 'paid',
   payment_channel = $1,
-  payment_method = $2,
+  gateway_transaction_id = $2,
   paid_at = CURRENT_TIMESTAMP,
   updated_at = CURRENT_TIMESTAMP
-WHERE id = $3
+WHERE external_id = $3
   AND status = 'pending'
 `
 
 type MarkPaymentPaidParams struct {
-	PaymentChannel sql.NullString `json:"payment_channel"`
-	PaymentMethod  sql.NullString `json:"payment_method"`
-	ID             int32          `json:"id"`
+	PaymentChannel       sql.NullString `json:"payment_channel"`
+	GatewayTransactionID sql.NullString `json:"gateway_transaction_id"`
+	ExternalID           string         `json:"external_id"`
 }
 
 func (q *Queries) MarkPaymentPaid(ctx context.Context, arg MarkPaymentPaidParams) error {
-	_, err := q.db.ExecContext(ctx, markPaymentPaid, arg.PaymentChannel, arg.PaymentMethod, arg.ID)
+	_, err := q.db.ExecContext(ctx, markPaymentPaid, arg.PaymentChannel, arg.GatewayTransactionID, arg.ExternalID)
 	return err
 }
 
@@ -268,11 +260,11 @@ const markPaymentSettled = `-- name: MarkPaymentSettled :exec
 UPDATE payments
 SET status = 'settled',
   updated_at = CURRENT_TIMESTAMP
-WHERE id = $1
+WHERE external_id = $1
   AND status = 'paid'
 `
 
-func (q *Queries) MarkPaymentSettled(ctx context.Context, id int32) error {
-	_, err := q.db.ExecContext(ctx, markPaymentSettled, id)
+func (q *Queries) MarkPaymentSettled(ctx context.Context, externalID string) error {
+	_, err := q.db.ExecContext(ctx, markPaymentSettled, externalID)
 	return err
 }

@@ -3,6 +3,7 @@ INSERT INTO payments (
     order_id,
     external_id,
     gateway_name,
+    payment_channel,
     amount,
     status
   )
@@ -10,6 +11,7 @@ VALUES (
     sqlc.arg(order_id),
     sqlc.arg(external_id),
     sqlc.arg(gateway_name),
+    sqlc.arg(payment_channel),
     sqlc.arg(amount),
     'pending'
   )
@@ -35,26 +37,26 @@ LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 UPDATE payments
 SET status = 'paid',
   payment_channel = sqlc.arg('payment_channel'),
-  payment_method = sqlc.arg('payment_method'),
+  gateway_transaction_id = sqlc.arg('gateway_transaction_id'),
   paid_at = CURRENT_TIMESTAMP,
   updated_at = CURRENT_TIMESTAMP
-WHERE id = sqlc.arg('id')
+WHERE external_id = sqlc.arg('external_id')
   AND status = 'pending';
 -- name: MarkPaymentFailed :exec
 UPDATE payments
 SET status = 'failed',
   updated_at = CURRENT_TIMESTAMP
-WHERE id = sqlc.arg('id')
+WHERE external_id = sqlc.arg('external_id')
   AND status = 'pending';
 -- name: MarkPaymentExpired :exec
 UPDATE payments
 SET status = 'expired',
   updated_at = CURRENT_TIMESTAMP
-WHERE id = sqlc.arg('id')
+WHERE external_id = sqlc.arg('external_id')
   AND status = 'pending';
 -- name: MarkPaymentSettled :exec
 UPDATE payments
 SET status = 'settled',
   updated_at = CURRENT_TIMESTAMP
-WHERE id = sqlc.arg('id')
+WHERE external_id = sqlc.arg('external_id')
   AND status = 'paid';

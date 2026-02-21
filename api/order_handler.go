@@ -9,20 +9,28 @@ import (
 	"sync"
 
 	"github.com/duniandewon/madkunyah-transactions-service/internal/features/orders"
+	"github.com/duniandewon/madkunyah-transactions-service/internal/features/payments"
 	mw "github.com/duniandewon/madkunyah-transactions-service/internal/middleware"
 	"github.com/duniandewon/madkunyah-transactions-service/internal/platform/paymentgateway"
 )
 
 type OrderHandler struct {
 	repo           orders.OrderRepository
+	paymentService payments.PaymentService
 	menuClient     *orders.MenuClient
 	paymentgateway paymentgateway.PaymentGateway
 }
 
-func NewOrderHandler(repo orders.OrderRepository, menuClient *orders.MenuClient, paymentGateway paymentgateway.PaymentGateway) *OrderHandler {
+func NewOrderHandler(
+	repo orders.OrderRepository,
+	paymentService payments.PaymentService,
+	menuClient *orders.MenuClient,
+	paymentGateway paymentgateway.PaymentGateway,
+) *OrderHandler {
 	return &OrderHandler{
 		repo:           repo,
 		menuClient:     menuClient,
+		paymentService: paymentService,
 		paymentgateway: paymentGateway,
 	}
 }
@@ -47,14 +55,12 @@ func (h *OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	orderInput := orders.CreateOrderInput{
+	order, err := h.repo.Create(r.Context(), orders.CreateOrderInput{
 		CustomerName: req.Customer.Name,
 		Phone:        req.Customer.Phone,
 		Address:      req.Customer.Address,
 		Items:        orderItems,
-	}
-
-	order, err := h.repo.Create(r.Context(), orderInput)
+	})
 	if err != nil {
 		http.Error(w, "failed to create order: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -63,6 +69,17 @@ func (h *OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request
 	url, gatewayID, err := h.paymentgateway.CreatePaymentRequest(r.Context(), order.Total, fmt.Sprint(order.ID))
 	if err != nil {
 		http.Error(w, "Failed to create payment request: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	_, err = h.paymentService.CreatePayment(r.Context(), payments.CreatePaymentInput{
+		OrderID:     order.ID,
+		ExternalID:  gatewayID,
+		GatewayName: "xendit",
+		Amount:      order.Total,
+	})
+	if err != nil {
+		http.Error(w, "failed to create payment record: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
