@@ -12,6 +12,7 @@ import (
 	"github.com/duniandewon/madkunyah-transactions-service/internal/features/payments"
 	mw "github.com/duniandewon/madkunyah-transactions-service/internal/middleware"
 	"github.com/duniandewon/madkunyah-transactions-service/internal/platform/paymentgateway"
+	"github.com/duniandewon/madkunyah-transactions-service/internal/response"
 )
 
 type OrderHandler struct {
@@ -51,7 +52,7 @@ func (h *OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request
 
 	orderItems, err := h.buildOrderItems(r.Context(), req.Items)
 	if err != nil {
-		http.Error(w, "failed to build order items: "+err.Error(), http.StatusInternalServerError)
+		response.InternalServerError(w, "failed to build order items: "+err.Error())
 		return
 	}
 
@@ -62,13 +63,13 @@ func (h *OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request
 		Items:        orderItems,
 	})
 	if err != nil {
-		http.Error(w, "failed to create order: "+err.Error(), http.StatusInternalServerError)
+		response.InternalServerError(w, "failed to create order: "+err.Error())
 		return
 	}
 
 	url, gatewayID, err := h.paymentgateway.CreatePaymentRequest(r.Context(), order.Total, fmt.Sprint(order.ID))
 	if err != nil {
-		http.Error(w, "Failed to create payment request: "+err.Error(), http.StatusInternalServerError)
+		response.InternalServerError(w, "Failed to create payment request: "+err.Error())
 		return
 	}
 
@@ -79,26 +80,24 @@ func (h *OrderHandler) CreateOrderHandler(w http.ResponseWriter, r *http.Request
 		Amount:      order.Total,
 	})
 	if err != nil {
-		http.Error(w, "failed to create payment record: "+err.Error(), http.StatusInternalServerError)
+		response.InternalServerError(w, "failed to create payment record: "+err.Error())
 		return
 	}
 
-	response := CreateOrderResponse{
+	res := CreateOrderResponse{
 		OrderID:   order.ID,
 		URL:       url,
 		Total:     order.Total,
 		GatewayID: gatewayID,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
+	response.Ok(w, "order created successfully", res)
 }
 
 func (h *OrderHandler) GetAllOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	claims, ok := mw.GetClaims(r.Context())
 	if !ok || claims.Role != "admin" {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		response.Unauthorized(w, "unauthorized")
 		return
 	}
 
@@ -117,47 +116,44 @@ func (h *OrderHandler) GetAllOrdersHandler(w http.ResponseWriter, r *http.Reques
 
 	orders, err := h.repo.GetAll(r.Context(), offset, limit)
 	if err != nil {
-		http.Error(w, "failed to get orders: "+err.Error(), http.StatusInternalServerError)
+		response.InternalServerError(w, "failed to get orders: "+err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(orders)
+	response.Ok(w, "orders retrieved successfully", orders)
 }
 
 func (h *OrderHandler) GetOrdersByUserIdHandler(w http.ResponseWriter, r *http.Request) {
 	userID := 1
 	orders, err := h.repo.GetAllByUserID(r.Context(), userID)
 	if err != nil {
-		http.Error(w, "failed to get orders: "+err.Error(), http.StatusInternalServerError)
+		response.InternalServerError(w, "failed to get orders: "+err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(orders)
+	response.Ok(w, "orders retrieved successfully", orders)
 }
 
 func (h *OrderHandler) GetUserOrderDetailsHandler(w http.ResponseWriter, r *http.Request) {
 	claims, ok := mw.GetClaims(r.Context())
 	if !ok {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		response.Unauthorized(w, "unauthorized")
 		return
 	}
 
 	orderID, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
-		http.Error(w, "invalid category ID", http.StatusBadRequest)
+		response.BadRequest(w, "invalid category ID")
 		return
 	}
 
 	orderItemsRows, err := h.repo.GetUserOrderDetails(r.Context(), claims.UserID, orderID)
 	if err != nil {
-		http.Error(w, "failed to get order details: "+err.Error(), http.StatusInternalServerError)
+		response.InternalServerError(w, "failed to get order details: "+err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(orderItemsRows)
+	response.Ok(w, "order details retrieved successfully", orderItemsRows)
 }
 
 func (h *OrderHandler) buildOrderItems(ctx context.Context, items []orders.MenuItemRequest) ([]orders.CreateOrderItemInput, error) {

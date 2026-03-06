@@ -8,6 +8,7 @@ import (
 
 	"github.com/duniandewon/madkunyah-transactions-service/internal/features/orders"
 	"github.com/duniandewon/madkunyah-transactions-service/internal/features/payments"
+	"github.com/duniandewon/madkunyah-transactions-service/internal/response"
 )
 
 type WebhookHandler struct {
@@ -38,13 +39,13 @@ type XenditWebhookPayload struct {
 func (h *WebhookHandler) XenditPaymentWebhook(w http.ResponseWriter, r *http.Request) {
 	callbackToken := r.Header.Get("X-CALLBACK-TOKEN")
 	if callbackToken != h.webhookSecret {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		response.Unauthorized(w, "unauthorized")
 		return
 	}
 
 	var payload XenditWebhookPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		http.Error(w, "invalid payload", http.StatusBadRequest)
+		response.BadRequest(w, "invalid payload")
 		return
 	}
 
@@ -53,19 +54,19 @@ func (h *WebhookHandler) XenditPaymentWebhook(w http.ResponseWriter, r *http.Req
 	gatewayTransactionID, ok := data["id"].(string)
 	if !ok {
 		fmt.Println("Error: id field missing")
-		http.Error(w, "missing id", http.StatusBadRequest)
+		response.BadRequest(w, "missing id")
 		return
 	}
 	orderId, ok := data["reference_id"].(string)
 	if !ok {
 		fmt.Println("Error: order_id field missing")
-		http.Error(w, "missing order_id", http.StatusBadRequest)
+		response.BadRequest(w, "missing order_id")
 		return
 	}
 	paymentRequestId, ok := data["payment_request_id"].(string)
 	if !ok {
 		fmt.Println("Error: payment_request_id field missing")
-		http.Error(w, "missing payment_request_id", http.StatusBadRequest)
+		response.BadRequest(w, "missing payment_request_id")
 		return
 	}
 	status, ok := data["status"].(string)
@@ -82,7 +83,7 @@ func (h *WebhookHandler) XenditPaymentWebhook(w http.ResponseWriter, r *http.Req
 	orderIdInt, err := strconv.Atoi(orderId)
 	if err != nil {
 		fmt.Println("Error: order_id is not a valid integer")
-		http.Error(w, "invalid order_id", http.StatusBadRequest)
+		response.BadRequest(w, "invalid order_id")
 		return
 	}
 
@@ -108,11 +109,9 @@ func (h *WebhookHandler) XenditPaymentWebhook(w http.ResponseWriter, r *http.Req
 		Status:               internalStatus,
 	}); err != nil {
 		fmt.Printf("Error updating payment status: %v\n", err)
-
-		http.Error(w, "failed to update payment status", http.StatusInternalServerError)
+		response.InternalServerError(w, "failed to update payment status: "+err.Error())
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+	response.Ok(w, "webhook processed successfully", nil)
 }
