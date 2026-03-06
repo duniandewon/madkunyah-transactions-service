@@ -31,7 +31,9 @@ func (app *application) mount() http.Handler {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-
+	r.Use(middleware.CleanPath)
+	r.Use(middleware.RedirectSlashes)
+	
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
@@ -46,27 +48,29 @@ func (app *application) mount() http.Handler {
 	})
 
 	xenditClient := paymentgateway.NewXenditGateway(app.env.XenditKey)
-	menuClient := orders.NewMenuClient("http://localhost:5002")
+	menuClient := orders.NewMenuClient("http://madkunyah-menus-service:5000")
 
 	paymentService := payments.NewService(app.db)
 	orderRepo := orders.NewService(app.db)
 
 	orderHandler := api.NewOrderHandler(orderRepo, paymentService, menuClient, xenditClient)
 
-	r.Route("/orders", func(r chi.Router) {
-		r.Post("/", orderHandler.CreateOrderHandler)
+	r.Group(func(r chi.Router) {
+		r.Post("/place", orderHandler.CreateOrderHandler)
 
 		r.Group(func(r chi.Router) {
 			r.Use(mw.IsAuth(app.env.JwtSecret))
 
-			r.Get("/", orderHandler.GetAllOrdersHandler)
-			r.Get("/{id}", orderHandler.GetUserOrderDetailsHandler)
+			r.Get("/list", orderHandler.GetAllOrdersHandler)
+			r.Get("/view/{id}", orderHandler.GetUserOrderDetailsHandler)
 		})
 	})
 
 	xenditWebhooks := api.NewWebhookHandler(orderRepo, paymentService, app.env.XenditWebhookKey)
 
-	r.Post("/webhooks/xendit", xenditWebhooks.XenditPaymentWebhook)
+	r.Route("/webhooks", func(r chi.Router){
+		r.Post("/xendit", xenditWebhooks.XenditPaymentWebhook)
+	})
 
 	return r
 }
