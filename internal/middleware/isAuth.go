@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/duniandewon/madkunyah-transactions-service/internal/response"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -57,12 +58,12 @@ func IsAuth(jwtSecret string) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				http.Error(w, ErrMissingToken.Error(), http.StatusUnauthorized)
+				response.Unauthorized(w, "missing authorization token")
 				return
 			}
 
 			if !strings.HasPrefix(authHeader, "Bearer ") {
-				http.Error(w, ErrInvalidTokenFormat.Error(), http.StatusUnauthorized)
+				response.Unauthorized(w, "invalid token format")
 				return
 			}
 
@@ -70,7 +71,7 @@ func IsAuth(jwtSecret string) func(http.Handler) http.Handler {
 
 			claims, err := verifyToken(jwtSecret, tokenString)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
+				response.Unauthorized(w, "invalid token")
 				return
 			}
 
