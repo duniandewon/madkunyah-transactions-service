@@ -1,0 +1,14 @@
+# Git
+.git
+.gitignore
+
+# Go binaries
+go-chi-app
+*.test
+
+# IDE/Editor files
+.idea/
+.vscode/
+
+# Local environment files
+.env

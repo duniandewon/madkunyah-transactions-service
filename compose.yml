@@ -1,0 +1,19 @@
+services:
+  madkunyah-transaction-services:
+    image: madkunyah-transactions-service
+    build: .
+    environment:
+      - DATABASE_URL=postgres://devuser:devpass@my-postgres:5432/devdb?sslmode=disable
+      - PORT=5000
+      - REDIS_URL=redis://:mypassword@my-redis:6379
+      - XENDIT_SECRET_KEY=xnd_development_aE5tmpjyu1dbCHKh9wPj6NfCXwuDBnAa8OWZKGqprL9v2q5juK1pjMWWgVl0Y
+      - XENDIT_WEBHOOK_KEY=1BIBzMG6xYpMrfc4n0iUlBFfxWzxpXiWpId9Ce6rZoDERnOo
+      - JWT_SECRET=JWT_SUPER_SECRET
+    ports:
+      - "5004:5000"
+    networks:
+      - madkunyah-net
+
+networks:
+  madkunyah-net:
+    external: true
