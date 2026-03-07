@@ -48,6 +48,7 @@ func (x *XenditGateway) CreatePaymentRequest(ctx context.Context, amount int, ex
 		fmt.Fprintf(os.Stderr, "Full Error Struct: %v\n", string(b))
 
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return "", "", err
 	}
 
 	qrString := *resp.PaymentMethod.QrCode.Get().ChannelProperties.QrString

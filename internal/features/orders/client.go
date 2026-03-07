@@ -22,6 +22,12 @@ func NewMenuClient(baseURL string) *MenuClient {
 	}
 }
 
+type MenuAPIResponse struct {
+	Status  int          `json:"status"`
+	Message string       `json:"message"`
+	Data    MenuResponse `json:"data"`
+}
+
 type MenuResponse struct {
 	ID             int                     `json:"id"`
 	Name           string                  `json:"name"`
@@ -57,10 +63,10 @@ func (c *MenuClient) FetchMenu(ctx context.Context, menuID int) (*MenuResponse, 
 	}
 	defer resp.Body.Close()
 
-	var menu MenuResponse
-	if err := json.NewDecoder(resp.Body).Decode(&menu); err != nil {
+	var apiResp MenuAPIResponse
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
 		return nil, err
 	}
 
-	return &menu, nil
+	return &apiResp.Data, nil
 }
